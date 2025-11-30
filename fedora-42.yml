@@ -1,0 +1,42 @@
+#cloud-config
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: wheel
+    shell: /usr/bin/zsh
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINEWBrd0A8TxQMU464x0DpU7q5rTkOJr0v/IWiub5h56 kamal@x1
+
+packages:
+  - zsh
+  - git
+  - vim
+  - curl
+  - openssh-server
+  - util-linux-user       # for the `chsh` command
+  - fira-code-fonts       # optional Nerd Font (remove if you don’t want it)
+
+runcmd:
+  - chown -R ubuntu:ubuntu /home/ubuntu
+  - chmod 700 /home/ubuntu/.ssh
+  - chmod 600 /home/ubuntu/.ssh/authorized_keys
+  # 1. Force a temporary password ("temp") to initialize the account state.
+  # This inserts the required hash into /etc/shadow.
+  - echo "ubuntu:temp" | chpasswd
+
+  # 2. Immediately remove the password hash (delete the password).
+  # This makes the account passwordless while preserving the 'activated' state.
+  - passwd -d ubuntu
+  - systemctl enable sshd
+  - systemctl start sshd
+  - su - ubuntu -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" -- --unattended'
+  - su - ubuntu -c "git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+  - su - ubuntu -c "git clone https://github.com/zsh-users/zsh-completions ~/.oh-my-zsh/custom/plugins/zsh-completions"
+  - su - ubuntu -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
+  - su - ubuntu -c 'echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> /home/ubuntu/.zshrc'
+  - su - ubuntu -c "mkdir -p /home/ubuntu/.local/bin"
+  - su - ubuntu -c "curl -sS https://starship.rs/install.sh | sh -s -- -y --bin-dir /home/ubuntu/.local/bin"
+  - su - ubuntu -c 'echo "eval \"\$(starship init zsh)\"" >> /home/ubuntu/.zshrc'
+  - su - ubuntu -c "sed -i 's/^plugins=(git)/plugins=(git zsh-autosuggestions zsh-completions zsh-syntax-highlighting)/g' /home/ubuntu/.zshrc"
+  - su - ubuntu -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+  - su - ubuntu -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"

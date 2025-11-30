@@ -15,6 +15,9 @@ packages:
   - openssh-server
   - util-linux-user       # for the `chsh` command
   - fira-code-fonts       # optional Nerd Font (remove if you don’t want it)
+  - shadow-utils
+  - podman
+  - libcap
 
 runcmd:
   - chown -R ubuntu:ubuntu /home/ubuntu
@@ -40,3 +43,28 @@ runcmd:
   - su - ubuntu -c "sed -i 's/^plugins=(git)/plugins=(git zsh-autosuggestions zsh-completions zsh-syntax-highlighting)/g' /home/ubuntu/.zshrc"
   - su - ubuntu -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
   - su - ubuntu -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
+  # Define variables for clarity
+  - USERNAME="ubuntu"
+  - START_ID="100000"
+  - COUNT="65536"
+
+  # --- Subordinate ID Mapping ---
+  # Create/overwrite the required subordinate UID/GID entries for the default user.
+  - sh -c "echo \"$USERNAME:$START_ID:$COUNT\" >> /etc/subuid"
+  - sh -c "echo \"$USERNAME:$START_ID:$COUNT\" >> /etc/subgid"
+
+  # --- Binary Capabilities Fix ---
+  # Fix for 'newuidmap': grants capability to set UIDs.
+  - sh -c "setcap cap_setuid+ep /usr/bin/newuidmap"
+
+  # Fix for 'newgidmap': grants capability to set GIDs.
+  - sh -c "setcap cap_setgid+ep /usr/bin/newgidmap"
+
+  # --- Incus Nesting Dependencies (Optional but recommended for Fedora/Podman) ---
+  # Ensure the necessary kernel modules are available for unprivileged overlay mounts
+  - modprobe overlay
+  - modprobe fuse
+
+  # Set the kernel variable needed for user namespace creation (often required in nested setups)
+  # This command requires sufficient container privileges (i.e., security.privileged=true or appropriate nesting caps)
+  #- sysctl -w kernel.unprivileged_userns_clone=1 || true

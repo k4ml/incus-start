@@ -1,0 +1,67 @@
+#cloud-config
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    shell: /usr/bin/zsh
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINEWBrd0A8TxQMU464x0DpU7q5rTkOJr0v/IWiub5h56 kamal@x1
+
+packages:
+  - zsh
+  - git
+  - vim
+  - curl
+  - openssh-server
+  - fonts-firacode
+  - podman
+  - libcap2-bin
+  - uidmap
+
+runcmd:
+  - chown -R ubuntu:ubuntu /home/ubuntu
+  - chmod 700 /home/ubuntu/.ssh
+  - chmod 600 /home/ubuntu/.ssh/authorized_keys
+  # 1. Initialize account state
+  - echo "ubuntu:temp" | chpasswd
+  # 2. Set passwordless (standard for Ubuntu cloud images)
+  - passwd -d ubuntu
+  
+  # Services
+  - systemctl enable ssh
+  - systemctl start ssh
+
+  # Oh My Zsh & Plugins
+  - su - ubuntu -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" -- --unattended'
+  - su - ubuntu -c "git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+  - su - ubuntu -c "git clone https://github.com/zsh-users/zsh-completions ~/.oh-my-zsh/custom/plugins/zsh-completions"
+  - su - ubuntu -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
+  
+  # Starship & Environment
+  - su - ubuntu -c "mkdir -p /home/ubuntu/.local/bin"
+  - su - ubuntu -c 'echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> /home/ubuntu/.zshrc'
+  - su - ubuntu -c "curl -sS https://starship.rs/install.sh | sh -s -- -y --bin-dir /home/ubuntu/.local/bin"
+  - su - ubuntu -c 'echo "eval \"\$(starship init zsh)\"" >> /home/ubuntu/.zshrc'
+  - su - ubuntu -c "sed -i 's/^plugins=(git)/plugins=(git zsh-autosuggestions zsh-completions zsh-syntax-highlighting)/g' /home/ubuntu/.zshrc"
+  
+  # Astral UV & NVM
+  - su - ubuntu -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+  - su - ubuntu -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
+
+  # --- Subordinate ID Mapping & Podman Support ---
+  - |
+    USERNAME="ubuntu"
+    START_ID="100000"
+    COUNT="65536"
+    if ! grep -q "$USERNAME" /etc/subuid; then
+      echo "$USERNAME:$START_ID:$COUNT" >> /etc/subuid
+      echo "$USERNAME:$START_ID:$COUNT" >> /etc/subgid
+    fi
+
+  # Binary Capabilities for Rootless Podman
+  - setcap cap_setuid+ep /usr/bin/newuidmap
+  - setcap cap_setgid+ep /usr/bin/newgidmap
+
+  # Kernel modules
+  - modprobe overlay
+  - modprobe fuse

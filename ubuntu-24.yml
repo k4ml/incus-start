@@ -21,6 +21,15 @@ packages:
   - libcap2-bin
   - uidmap
 
+write_files:
+  - path: /home/ubuntu/.screenrc
+    owner: ubuntu:ubuntu
+    permissions: '0644'
+    content: |
+      caption string "%?%F%{= Bk}%? %C%A %D %d-%m-%Y %{= kB} %t%= %?%F%{= Bk}%:%{= wk}%? %n "
+      hardstatus alwayslastline
+      hardstatus string '%{= kG}[ %{G}%H %{g}][%= %{= kw}%?%-Lw%?%{r}(%{W}%n*%f%t%?(%u)%?%{r})%{w}%?%+Lw%?%?%= %{g}][%{B} %d/%m %{W}%c %{g}]'
+
 runcmd:
   - chown -R ubuntu:ubuntu /home/ubuntu
   - chmod 700 /home/ubuntu/.ssh
